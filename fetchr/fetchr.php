@@ -1,15 +1,15 @@
 <?php ob_start();
 /**
- * Plugin Name: WooCommerce With Menavip
- * Plugin URI: http://menavip.com
- * Description: A plugin to integrate menavip shipping with woo commerce.
+ * Plugin Name: WooCommerce With fetchr
+ * Plugin URI: http://fetchr.us
+ * Description: A plugin to integrate fetchr shipping with woo commerce.
  * Author: fetchr
  * Author URI: http://www.fetchr.us
  */
 add_action('admin_menu', 'test_plugin_setup_menu');
 //define(ERP_URL);
 function test_plugin_setup_menu(){
-    add_menu_page( 'MENAVIP ERP Integration', 'Mena Vip', 'manage_options', 'test-plugin', 'mena_setting_page' );
+    add_menu_page( 'fetchr Integration', 'fetchr', 'manage_options', 'test-plugin', 'mena_setting_page' );
     add_action( 'admin_init', 'register_setting_options' );
 }
 
@@ -30,7 +30,7 @@ function register_setting_options()
 function mena_setting_page() {
     ?>
     <div class="wrap">
-        <h2> Mena Vip Integration</h2>
+        <h2> fetchr Integration</h2>
 
         <form method="post" action="options.php">
             <?php settings_fields( 'mena-settings-group' ); ?>
@@ -44,12 +44,12 @@ function mena_setting_page() {
                 </tr>
 
                 <tr valign="top">
-                    <th scope="row">MENAVIP User Name</th>
+                    <th scope="row">fetchr Username</th>
                     <td><input type="text" name="mena_merchant_name" value="<?php echo esc_attr( get_option('mena_merchant_name') ); ?>" /></td>
                 </tr>
 
                 <tr valign="top">
-                    <th scope="row">MENAVIP User Password</th>
+                    <th scope="row">fetchr Password</th>
                     <td><input type="text" name="mena_merchant_password" value="<?php echo esc_attr( get_option('mena_merchant_password') ); ?>" /></td>
                 </tr>
 
@@ -217,7 +217,7 @@ function menavip_delivery_only ($order,$order_wc,$url)
     #echo '<pre>';
     #print_r($data);exit;
     $url = $url."client/api/";
-    $data_string = "args=" . json_encode($data);
+    $data_string = "args=" . json_encode($data, JSON_UNESCAPED_UNICODE);
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -246,7 +246,11 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
 
     foreach ($products as $product)
     {
-        $product_obj = new WC_Product($product['product_id']);
+        if($product['variation_id'] != 0){
+            $product_obj = new WC_Product($product['variation_id']);
+        }else{
+            $product_obj = new WC_Product($product['product_id']);
+        }
         $sku = $product_obj->get_sku();
         $n_product = array (
             'client_ref'  	   	=> $order->ID,
@@ -287,7 +291,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     #print_r($datalist);
     #exit;
 
-    $ERPdata 		= "ERPdata=".json_encode($datalist);
+    $ERPdata 		= "ERPdata=".json_encode($datalist, JSON_UNESCAPED_UNICODE);
     $erpuser		=  get_option('mena_merchant_name');	// "apifulfilment";
     $erppassword	=  get_option('mena_merchant_password'); //"apifulfilment";
     $merchant_name	=  get_option('erp_user_name');  //"API Test";//
