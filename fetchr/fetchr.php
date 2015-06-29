@@ -6,6 +6,32 @@
  * Author: fetchr
  * Author URI: http://www.fetchr.us
  */
+
+/*
+* 2015-2016 Fetchr
+*
+* NOTICE OF LICENSE
+*
+* This source file is subject to the Open Software License (OSL 3.0)
+* that is bundled with this package in the file LICENSE.txt.
+* It is also available through the world-wide-web at this URL:
+* http://opensource.org/licenses/osl-3.0.php
+* If you did not receive a copy of the license and are unable to
+* obtain it through the world-wide-web, please send an email
+* to license@fetchr.us so we can send you a copy immediately.
+*
+* DISCLAIMER
+*
+* Do not edit or add to this file if you wish to upgrade Fetchr Shipping to newer
+* versions in the future. If you wish to customize Fetchr Shipping for your
+* needs please refer to http://www.fetchr.us for more information.
+*
+*  @author Fetchr <contact@fetchr.us>
+*  @author Asaad Abdo <a.abdo@fetchr.us>
+*  @copyright  2015-2016 Fetchr
+*  @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+*  Fetchr.us
+*/
 add_action('admin_menu', 'test_plugin_setup_menu');
 //define(ERP_URL);
 function test_plugin_setup_menu(){
