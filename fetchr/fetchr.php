@@ -153,6 +153,7 @@ function hit_mena_api()
         //$where = array_keys( wc_get_order_statuses() );
     }
     $orders = get_posts( array(
+	          'numberposts'       => -1,
             'post_type'   => 'shop_order',
             'post_status' => $where
         )
@@ -220,7 +221,14 @@ add_filter( 'wc_order_statuses', 'add_erp_processing_to_order_statuses' );
 
 function menavip_delivery_only ($order,$order_wc,$url)
 {
-    $order_payment_method = strtoupper($order_wc->payment_method);
+
+        if($order_wc->payment_method == "cod"){
+            $payment_method = "COD";
+            $grand_total = $order_wc->get_total();
+        }else{
+            $payment_method = "CD";
+            $grand_total = "0";
+        }
     $data = array(
         'username' 		 => get_option('mena_merchant_name'),
         'password' 		 => get_option('mena_merchant_password'),
@@ -229,15 +237,15 @@ function menavip_delivery_only ($order,$order_wc,$url)
         'data' => array(
             array(
                 'order_reference'  	=> 	  $order->ID,
-                'name' 				=> 	  $order_wc->shipping_first_name." ".$order_wc->shipping_last_name,
-                'email' 			=>    $order_wc->billing_email,
-                'phone_number'	 	=>    $order_wc->billing_phone,
-                'address' 			=>    $order_wc->get_shipping_address(),
-                'city' 				=>    $order_wc->shipping_city,
-                'payment_type' 		=>    $order_payment_method,
-                'amount' 			=>    $order_wc->get_total(),
-                'description'		=>	  time(),
-                'comments'			=>	  $order_wc->customer_message."   ".$order_wc->customer_note,
+                'name' 		       		=> 	  $order_wc->shipping_first_name." ".$order_wc->shipping_last_name,
+                'email' 			      =>    $order_wc->billing_email,
+                'phone_number'	 	  =>    $order_wc->billing_phone,
+                'address' 			    =>    $order_wc->get_shipping_address(),
+                'city' 				      =>    $order_wc->shipping_city,
+                'payment_type' 	   	=>    $payment_method,
+                'amount' 			      =>    $grand_total,
+                'description'	    	=>	  time(),
+                'comments'		    	=>	  $order_wc->customer_message."   ".$order_wc->customer_note,
                 //'item'
             )));
     #echo '<pre>';
@@ -297,19 +305,28 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
 
     }// product foreach loop
 
+
+
+    if($order_wc->payment_method == "cod"){
+        $payment_method = "COD";
+        $grand_total = $order_wc->get_total();
+    }else{
+        $payment_method = "CD";
+        $grand_total = "0";
+    }
     $datalist = array(array ('order' => array(
         'items' => $item_list,
         'details' => array(
-            'status' 				=> '',
-            'discount'			 	=> 0,
-            'grand_total'	    	=> $order_wc->get_total(),
-            'payment_method' 		=> strtolower($order_wc->payment_method),
-            'order_id' 				=> $order->ID,
+            'status' 				      => '',
+            'discount'			 	    => 0,
+            'grand_total'	        => $grand_total,
+            'payment_method' 		  => $payment_method,
+            'order_id' 			    	=> $order->ID,
             'customer_firstname' 	=> $order_wc->shipping_first_name,
             'customer_lastname' 	=> $order_wc->shipping_last_name,
-            'customer_mobile'		=> $order_wc->billing_phone,
-            'customer_email' 		=> $order_wc->billing_email,
-            'order_address' 		=> $order_wc->get_shipping_address()
+            'customer_mobile'		  => $order_wc->billing_phone,
+            'customer_email' 		  => $order_wc->billing_email,
+            'order_address' 	   	=> $order_wc->get_shipping_address()
         )
     )));
 
@@ -356,7 +373,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
 
 function wc_order_status_styling() {
     echo '<style>
- .widefat .column-order_status mark.on-hold:after, .widefat .column-order_status mark.completed:after, 
+ .widefat .column-order_status mark.on-hold:after, .widefat .column-order_status mark.completed:after,
  .widefat .column-order_status mark.cancelled:after, .widefat .column-order_status mark.processing:after,
  .widefat .column-order_status mark.erp-processing:after {
  font-size: 2em;
@@ -384,13 +401,13 @@ function wc_order_status_styling() {
  color: #32d725;
  content: "\e015";
  }
- 
+
  .widefat .column-order_status mark.erp-processing {
  color: #32d725 !important;
  content: "\e015";
  background-image: url("http://menavip.com/wp-content/uploads/2013/06/logo.png");
  }
- 
+
  </style>';
 }
 add_action('admin_head', 'wc_order_status_styling');
