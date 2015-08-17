@@ -47,7 +47,7 @@ function register_setting_options()
     register_setting( 'mena-settings-group', 'mena_fetch_status');
     register_setting( 'mena-settings-group', 'mena_servcie_type');
     register_setting( 'mena-settings-group', 'mena_merchant_phone_number');
-    register_setting( 'mena-settings-group', 'erp_user_name');
+    // register_setting( 'mena-settings-group', 'erp_user_name');
     register_setting( 'mena-settings-group', 'mena_is_production');
     register_setting( 'mena-settings-group', 'mena_is_uae_only');
 
@@ -64,10 +64,10 @@ function mena_setting_page() {
             <table class="form-table">
 
 
-                <tr valign="top">
+                <!-- <tr valign="top">
                     <th scope="row">ERP Username/merchant for fulfilment</th>
                     <td><input type="text" name="erp_user_name" value="<?php echo esc_attr(get_option('erp_user_name')); ?>" /></td>
-                </tr>
+                </tr> -->
 
                 <tr valign="top">
                     <th scope="row">fetchr Username</th>
@@ -337,7 +337,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     $ERPdata 		= "ERPdata=".json_encode($datalist, JSON_UNESCAPED_UNICODE);
     $erpuser		=  get_option('mena_merchant_name');	// "apifulfilment";
     $erppassword	=  get_option('mena_merchant_password'); //"apifulfilment";
-    $merchant_name	=  get_option('erp_user_name');  //"API Test";//
+    $merchant_name	= "MENA360 API";// get_option('erp_user_name');  //"API Test";//
     $ch 			= curl_init();
     $url 			= $url."client/gapicurl/";
     curl_setopt($ch, CURLOPT_URL,$url);
