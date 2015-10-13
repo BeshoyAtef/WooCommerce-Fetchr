@@ -257,6 +257,7 @@ function menavip_delivery_only ($order,$order_wc,$url)
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
     $results = curl_exec($ch);
+    print $results;
     $results = json_decode($results);
     if ($results->status == "success")
     {
