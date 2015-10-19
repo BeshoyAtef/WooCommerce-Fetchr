@@ -32,6 +32,8 @@
 *  @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
 *  Fetchr.us
 */
+
+
 add_action('admin_menu', 'test_plugin_setup_menu');
 //define(ERP_URL);
 function test_plugin_setup_menu(){
@@ -222,6 +224,10 @@ add_filter( 'wc_order_statuses', 'add_fetchr_processing_to_order_statuses' );
 function menavip_delivery_only ($order,$order_wc,$url)
 {
 
+  $str_search_for = array('"','&');
+  $str_replace_with = array('\'\'', 'and');
+
+
         if($order_wc->payment_method == "cod"){
             $payment_method = "COD";
             $grand_total = $order_wc->get_total();
@@ -229,6 +235,7 @@ function menavip_delivery_only ($order,$order_wc,$url)
             $payment_method = "CD";
             $grand_total = "0";
         }
+        // str_replace($str_search_for,$str_replace_with, $array)
     $data = array(
         'username' 		 => get_option('mena_merchant_name'),
         'password' 		 => get_option('mena_merchant_password'),
@@ -237,15 +244,15 @@ function menavip_delivery_only ($order,$order_wc,$url)
         'data' => array(
             array(
                 'order_reference'  	=> 	  $order->ID,
-                'name' 		       		=> 	  $order_wc->shipping_first_name." ".$order_wc->shipping_last_name,
+                'name' 		       		=> 	  str_replace($str_search_for,$str_replace_with, $order_wc->shipping_first_name." ".$order_wc->shipping_last_name),
                 'email' 			      =>    $order_wc->billing_email,
                 'phone_number'	 	  =>    $order_wc->billing_phone,
-                'address' 			    =>    $order_wc->get_shipping_address(),
-                'city' 				      =>    $order_wc->shipping_city,
+                'address' 			    =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_shipping_address()),
+                'city' 				      =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_city),
                 'payment_type' 	   	=>    $payment_method,
                 'amount' 			      =>    $grand_total,
                 'description'	    	=>	  time(),
-                'comments'		    	=>	  $order_wc->customer_message."   ".$order_wc->customer_note,
+                'comments'		    	=>	  str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->customer_note),
                 //'item'
             )));
     #echo '<pre>';
@@ -276,6 +283,10 @@ function menavip_delivery_only ($order,$order_wc,$url)
 
 function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
 {
+
+  $str_search_for = array('"','&');
+  $str_replace_with = array('\'\'', 'and');
+
     //print_r($product);
     $item_list  = array ();
 
@@ -288,19 +299,19 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
         }
         $sku = $product_obj->get_sku();
         $n_product = array (
-            'client_ref'  	   	=> $order->ID,
-            'name' 		 	   	=> $product["name"],
-            'sku'		 	   	=> $sku,
-            'quantity' 	 	   	=> $product["qty"],
+            'client_ref'  	 	  => $order->ID,
+            'name' 		 	    	  => str_replace($str_search_for,$str_replace_with, $product["name"]),
+            'sku'		 	       	  => $sku,
+            'quantity' 	 	   	  => $product["qty"],
             'merchant_details' 	=> array(
-                'mobile' 			=> trim(get_option('mena_merchant_phone_number')),
-                'phone'				=> trim(get_option('mena_merchant_phone_number')),
-                'name' 				=> get_option('mena_merchant_name'),
+                'mobile' 			  => trim(get_option('mena_merchant_phone_number')),
+                'phone'			  	=> trim(get_option('mena_merchant_phone_number')),
+                'name' 		   		=> get_option('mena_merchant_name'),
                 'address' 			=> ' NO '
             ),
-            'COD' 				=> $order_wc->get_total_shipping(),// $order_wc->order_shipping
-            'price'		 		=> $product_obj->price ,//,$product_obj->get_regular_price()
-            'is_voucher' 		=> 'No'
+            'COD' 			       	=> $order_wc->get_total_shipping(),// $order_wc->order_shipping
+            'price'		 	       	=> $product_obj->price ,//,$product_obj->get_regular_price()
+            'is_voucher'    		=> 'No'
         );
         array_push($item_list,$n_product);
 
@@ -323,11 +334,11 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
             'grand_total'	        => $grand_total,
             'payment_method' 		  => $payment_method,
             'order_id' 			    	=> $order->ID,
-            'customer_firstname' 	=> $order_wc->shipping_first_name,
-            'customer_lastname' 	=> $order_wc->shipping_last_name,
+            'customer_firstname' 	=> str_replace($str_search_for,$str_replace_with,$order_wc->shipping_first_name),
+            'customer_lastname' 	=> str_replace($str_search_for,$str_replace_with,$order_wc->shipping_last_name),
             'customer_mobile'		  => $order_wc->billing_phone,
             'customer_email' 		  => $order_wc->billing_email,
-            'order_address' 	   	=> $order_wc->get_shipping_address()
+            'order_address' 	   	=> str_replace($str_search_for,$str_replace_with,$order_wc->get_shipping_address())
         )
     )));
 
