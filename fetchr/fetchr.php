@@ -187,19 +187,19 @@ function hit_mena_api()
 /* =================================================== Adding Status and Color icon ============================================================= */
 function register_erp_order_status()
 {
-    register_post_status( 		'wc-erp-processing', array(
-            'label'                     => 'Erp Processing',
+    register_post_status( 		'wc-fetchr-processing', array(
+            'label'                     => 'fetchr Processing',
             'public'                    => true,
             'exclude_from_search'       => false,
             'show_in_admin_all_list'    => true,
             'show_in_admin_status_list' => true,
-            'label_count'               => _n_noop( 'Erp Processing <span class="count">(%s)</span>', 'Erp Processing <span class="count">(%s)</span>' )
+            'label_count'               => _n_noop( 'fetchr Processing <span class="count">(%s)</span>', 'fetchr Processing <span class="count">(%s)</span>' )
         )
     );
 }
 add_action( 'init', 'register_erp_order_status' );
 // Add to list of WC Order statuses
-function add_erp_processing_to_order_statuses( $order_statuses ) {
+function add_fetchr_processing_to_order_statuses( $order_statuses ) {
 
     $new_order_statuses = array();
     // add new order status after processing
@@ -208,13 +208,13 @@ function add_erp_processing_to_order_statuses( $order_statuses ) {
         $new_order_statuses[ $key ] = $status;
         if ( 'wc-processing' === $key )
         {
-            $new_order_statuses['wc-erp-processing'] = 'Erp Processing';
+            $new_order_statuses['wc-fetchr-processing'] = 'Fetchr Processing';
         }
     }
 
     return $new_order_statuses;
 }
-add_filter( 'wc_order_statuses', 'add_erp_processing_to_order_statuses' );
+add_filter( 'wc_order_statuses', 'add_fetchr_processing_to_order_statuses' );
 
 // setting a wp test cron to run hourly
 // Colors for icons
@@ -262,7 +262,7 @@ function menavip_delivery_only ($order,$order_wc,$url)
     if ($results->status == "success")
     {
         // Change Status Here to ERP Processing
-        $order_wc->update_status( 'wc-erp-processing' );
+        $order_wc->update_status( 'wc-fetchr-processing' );
         // Create A custom field Airway bill number and update it
 
         if ( ! update_post_meta ($order->ID, 'awb', $results->shipment_data ))
@@ -354,7 +354,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     if ($results["success"] == 1)
     {
         // Change Status Here to ERP Processing
-        $order_wc->update_status( 'wc-erp-processing' );
+        $order_wc->update_status( 'wc-fetchr-processing' );
         // Create A custom field Airway bill number and update it
 
         if ( ! update_post_meta ($order->ID, 'awb', $results['response']['tracking_no'] ))
@@ -376,7 +376,7 @@ function wc_order_status_styling() {
     echo '<style>
  .widefat .column-order_status mark.on-hold:after, .widefat .column-order_status mark.completed:after,
  .widefat .column-order_status mark.cancelled:after, .widefat .column-order_status mark.processing:after,
- .widefat .column-order_status mark.erp-processing:after {
+ .widefat .column-order_status mark.fetchr-processing:after {
  font-size: 2em;
  }
  /* Processing Ellipsis */
@@ -384,7 +384,7 @@ function wc_order_status_styling() {
  color: #2529d7;
  content: "\e011";
  }
- .erp-processing.tips:after {
+ .fetchr-processing.tips:after {
   color: #73a724 !important;
 }
  /* On-Hold Dash */
@@ -403,10 +403,14 @@ function wc_order_status_styling() {
  content: "\e015";
  }
 
- .widefat .column-order_status mark.erp-processing {
+ .widefat .column-order_status mark.fetchr-processing {
  color: #32d725 !important;
  content: "\e015";
- background-image: url("http://menavip.com/wp-content/uploads/2013/06/logo.png");
+ height: 30px;
+ width: 50px;
+ background-image: url("https://m.fetchr.us/image/logo_full.png");
+ background-size: contain;
+ background-repeat: no-repeat;
  }
 
  </style>';
