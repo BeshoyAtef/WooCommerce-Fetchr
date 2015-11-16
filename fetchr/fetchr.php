@@ -247,7 +247,7 @@ function menavip_delivery_only ($order,$order_wc,$url)
                 'name' 		       		=> 	  str_replace($str_search_for,$str_replace_with, $order_wc->shipping_first_name." ".$order_wc->shipping_last_name),
                 'email' 			      =>    $order_wc->billing_email,
                 'phone_number'	 	  =>    $order_wc->billing_phone,
-                'address' 			    =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_shipping_address()),
+                'address' 			    =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_formatted_shipping_address()),
                 'city' 				      =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_city),
                 'payment_type' 	   	=>    $payment_method,
                 'amount' 			      =>    $grand_total,
@@ -255,8 +255,10 @@ function menavip_delivery_only ($order,$order_wc,$url)
                 'comments'		    	=>	  str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->customer_note),
                 //'item'
             )));
-    #echo '<pre>';
-    #print_r($data);exit;
+    echo '<pre>';
+    print_r($data);
+    exit;
+
     $url = $url."client/api/";
     $data_string = "args=" . json_encode($data, JSON_UNESCAPED_UNICODE);
     $ch = curl_init($url);
@@ -317,7 +319,13 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
 
     }// product foreach loop
 
-
+    $coupon_amount = 0;
+    if( $order_wc->get_used_coupons() ) {
+        foreach( $order_wc->get_used_coupons() as $coupon) {
+          $WC_Coupon = new WC_Coupon($coupon);
+          $coupon_amount = $coupon_amount + $WC_Coupon->coupon_amount;
+        }
+    }
 
     if($order_wc->payment_method == "cod"){
         $payment_method = "COD";
@@ -330,7 +338,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
         'items' => $item_list,
         'details' => array(
             'status' 				      => '',
-            'discount'			 	    => 0,
+            'discount'			 	    => $coupon_amount,
             'grand_total'	        => $grand_total,
             'payment_method' 		  => $payment_method,
             'order_id' 			    	=> $order->ID,
@@ -338,13 +346,13 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
             'customer_lastname' 	=> str_replace($str_search_for,$str_replace_with,$order_wc->shipping_last_name),
             'customer_mobile'		  => $order_wc->billing_phone,
             'customer_email' 		  => $order_wc->billing_email,
-            'order_address' 	   	=> str_replace($str_search_for,$str_replace_with,$order_wc->get_shipping_address())
+            'order_address' 	   	=> str_replace($str_search_for,$str_replace_with,$order_wc->get_formatted_shipping_address())
         )
     )));
 
-    #echo '<pre>';
-    #print_r($datalist);
-    #exit;
+    echo '<pre>';
+    print_r($datalist);
+    exit;
 
     $ERPdata 		= "ERPdata=".json_encode($datalist, JSON_UNESCAPED_UNICODE);
     $erpuser		=  get_option('mena_merchant_name');	// "apifulfilment";
