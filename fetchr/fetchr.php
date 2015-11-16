@@ -255,9 +255,9 @@ function menavip_delivery_only ($order,$order_wc,$url)
                 'comments'		    	=>	  str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->customer_note),
                 //'item'
             )));
-    echo '<pre>';
-    print_r($data);
-    exit;
+    // echo '<pre>';
+    // print_r($data);
+    // exit;
 
     $url = $url."client/api/";
     $data_string = "args=" . json_encode($data, JSON_UNESCAPED_UNICODE);
@@ -350,9 +350,9 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
         )
     )));
 
-    echo '<pre>';
-    print_r($datalist);
-    exit;
+    // echo '<pre>';
+    // print_r($datalist);
+    // exit;
 
     $ERPdata 		= "ERPdata=".json_encode($datalist, JSON_UNESCAPED_UNICODE);
     $erpuser		=  get_option('mena_merchant_name');	// "apifulfilment";
