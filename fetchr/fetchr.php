@@ -374,6 +374,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     {
         // Change Status Here to ERP Processing
         $order_wc->update_status( 'wc-fetchr-processing' );
+        $order_wc->reduce_order_stock();
         // Create A custom field Airway bill number and update it
 
         if ( ! update_post_meta ($order->ID, 'awb', $results['response']['tracking_no'] ))
