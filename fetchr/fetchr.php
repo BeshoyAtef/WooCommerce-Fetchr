@@ -3,6 +3,7 @@
  * Plugin Name: WooCommerce With fetchr
  * Plugin URI: http://fetchr.us
  * Description: A plugin to integrate fetchr shipping with woo commerce.
+ * Version: 1.2.6
  * Author: fetchr
  * Author URI: http://www.fetchr.us
  */
@@ -374,7 +375,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     {
         // Change Status Here to ERP Processing
         $order_wc->update_status( 'wc-fetchr-processing' );
-        $order_wc->reduce_order_stock();
+        // $order_wc->reduce_order_stock();
         // Create A custom field Airway bill number and update it
 
         if ( ! update_post_meta ($order->ID, 'awb', $results['response']['tracking_no'] ))
