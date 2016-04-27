@@ -517,10 +517,8 @@ function custom_bulk_admin_footer() {
 
 
   add_filter( 'woocommerce_admin_order_actions', 'add_fetchr_ship_actions_button', PHP_INT_MAX, 2 );
-
-  
   function add_fetchr_ship_actions_button( $actions, $the_order ) {
-    if ( ! $the_order->has_status( array( 'ship-with-fetchr' ) ) ) { // if order is not cancelled yet...
+    if ( $the_order->has_status( array( 'processing' ) ) ) { // if order is not cancelled yet...
           $actions['ship-with-fetchr'] = array(
               'url'       => wp_nonce_url( admin_url( 'admin-ajax.php?action=woocommerce_mark_order_status&status=ship-with-fetchr&order_id=' . $the_order->id ), 'woocommerce-mark-order-status' ),
               'name'      => __( 'Ship with Fetchr', 'woocommerce' ),
