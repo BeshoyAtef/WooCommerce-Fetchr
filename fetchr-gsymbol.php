@@ -35,7 +35,7 @@
 */
 
 // Report all errors except E_NOTICE
-// error_reporting(E_ALL ^ E_NOTICE);
+error_reporting(E_ALL ^ E_NOTICE);
 
 
 add_action('admin_menu', 'test_plugin_setup_menu');
@@ -200,17 +200,16 @@ function hit_mena_api()
         if (get_option('mena_is_uae_only') == "1" &&  $shipping_country !=="AE")
             continue;
 
-        $products = $order_wc->get_items();
-
         if( get_option('mena_servcie_type') == "fulfil_delivery")
         {
             // fulfilment + delivery
+            $products = $order_wc->get_items();
             menavip_fulfil_delivery ($order,$order_wc,$products,$server_url);
         }
         else
         {
             // delivery only
-            menavip_delivery_only ($order,$order_wc,$products,$server_url);
+            menavip_delivery_only ($order,$order_wc,$server_url);
         }
 
     }
@@ -263,17 +262,13 @@ add_filter( 'wc_order_statuses', 'add_fetchr_processing_to_order_statuses' );
 // setting a wp test cron to run hourly
 // Colors for icons
 
-function menavip_delivery_only ($order,$order_wc,$products,$url)
+function menavip_delivery_only ($order,$order_wc,$url)
 {
-$description = '';
-foreach ($products as $product) {
-  $description = $description . $product['name'].' - Qty: '.$product['qty'].', ';
-}
 
   $str_search_for = array('"','&');
   $str_replace_with = array('\'\'', 'and');
 
-  $order_id = (string)$order_wc->get_order_number();
+  $order_id = $order_wc->get_order_number();
 
 
         if($order_wc->payment_method == "cod"){
@@ -291,7 +286,7 @@ foreach ($products as $product) {
         'pickup_location'=> 'dubai',  //get_option('mena_pickup_location'),
         'data' => array(
             array(
-                'order_reference'  	=> 	  "$order_id",
+                'order_reference'  	=> 	  $order_id,
                 'name' 		       		=> 	  str_replace($str_search_for,$str_replace_with, $order_wc->shipping_first_name." ".$order_wc->shipping_last_name),
                 'email' 			      =>    $order_wc->billing_email,
                 'phone_number'	 	  =>    $order_wc->billing_phone,
@@ -299,7 +294,7 @@ foreach ($products as $product) {
                 'city' 				      =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_city),
                 'payment_type' 	   	=>    $payment_method,
                 'amount' 			      =>    $grand_total,
-                'description'	    	=>	  str_replace($str_search_for,$str_replace_with, $description),
+                'description'	    	=>	  time(),
                 'comments'		    	=>	  str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->customer_note),
                 //'item'
             )));
@@ -328,6 +323,11 @@ foreach ($products as $product) {
             add_post_meta($order->ID, 'awb', $results->$order_id, true );
         }
 
+    }elseif($results["awb"] == "SKU not found"){
+        echo "<br />Missing SKU's for order ($order_id):<br />";
+        foreach($item_list as $item){
+        echo "- ". $item['sku'] ."<br>";
+        }
     }
 
 }
@@ -340,7 +340,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
   $str_search_for = array('"','&');
   $str_replace_with = array('\'\'', 'and');
 
-  $order_id = (string)$order_wc->get_order_number();
+  $order_id = $order_wc->get_order_number();
 
 
    //print_r($product);
@@ -357,7 +357,7 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
         }
         $sku = $product_obj->get_sku();
         $n_product = array (
-            'client_ref'  	 	  => "$order_id",
+            'client_ref'  	 	  => $order_id,
             'name' 		 	    	  => str_replace($str_search_for,$str_replace_with, $product["name"]),
             'sku'		 	       	  => $sku,
             'quantity' 	 	   	  => $product["qty"],
@@ -375,7 +375,37 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
 
     }// product foreach loop
 
-    //
+
+
+
+// Custom Code for Green Symbol
+             $products_qty  = array ();
+
+            foreach($item_list as $k => $v)
+            {
+                foreach($item_list as $key => $value)
+                {
+                    if($k != $key && $v['sku'] == $value['sku'])
+                    {
+                         unset($item_list[$k]);
+                    }
+
+                }
+                    $products_qty[$v['sku']] += $v['quantity'];
+            }
+
+            foreach ($item_list as $key => $value) {
+                if (isset($products_qty[$value['sku']])){
+                    $qty = $products_qty[$value['sku']];
+                    $item_list[$key]['quantity'] = "$qty";
+                }
+            }
+            $item_list  = array_values($item_list);
+
+// end Custom Code for Green Symbol
+
+
+
     // $discount_amount = 0;
     // if( $order_wc->get_used_coupons() ) {
     //     foreach( $order_wc->get_used_coupons() as $coupon) {
