@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce With fetchr
  * Plugin URI: http://fetchr.us
  * Description: A plugin to integrate fetchr shipping with woo commerce.
- * Version: 1.3.1
+ * Version: 1.3.5
  * Author: fetchr
  * Author URI: http://www.fetchr.us
  */
