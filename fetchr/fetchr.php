@@ -92,6 +92,10 @@ function mena_setting_page() {
                     <td><input type="text" name="mena_merchant_phone_number" value="<?php echo esc_attr( get_option('mena_merchant_phone_number') ); ?>" /></td>
                 </tr>
 
+                <tr valign="top">
+                    <th scope="row">Pickup Location Adrress</th>
+                    <td><input type="text" name="mena_pickup_location" value="<?php echo esc_attr( get_option('mena_pickup_location') ); ?>" /></td>
+                </tr>
 
                 <tr valign="top">
                     <th scope="row">Service Type</th>
@@ -288,7 +292,7 @@ foreach ($products as $product) {
         'username' 		 => get_option('mena_merchant_name'),
         'password' 		 => get_option('mena_merchant_password'),
         'method' 		 => 'create_orders',
-        'pickup_location'=> 'dubai',  //get_option('mena_pickup_location'),
+        'pickup_location'	 => get_option('mena_pickup_location'),
         'data' => array(
             array(
                 'order_reference'  	=> 	  "$order_id",
