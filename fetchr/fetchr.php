@@ -35,7 +35,15 @@
 */
 
 // Report all errors except E_NOTICE
-// error_reporting(E_ALL ^ E_NOTICE);
+error_reporting(E_ALL ^ E_NOTICE);
+
+// foreach ( glob( plugin_dir_path( 'google-cloud-print-library' ) . "*.php" ) as $file ) {
+//     include_once $file;
+// }
+// include(plugin_dir_path( 'google-cloud-print-library' ) . 'google-cloud-print-library.php');
+require_once( ABSPATH . '/wp-content/plugins/google-cloud-print-library/google-cloud-print-library.php');
+
+
 
 
 add_action('admin_menu', 'test_plugin_setup_menu');
@@ -139,11 +147,22 @@ function mena_setting_page() {
         <form method="post" action="">
           <input type="submit" name="push_orders" id="push_orders" class="button button-primary" value="Push Orders">
         </form>
+
+        </form>
+        <form method="post" action="">
+          <input type="submit" name="test_print" id="test_print" class="button button-primary" value="test">
+        </form>
+
     </div>
     <?php
 
 if (isset($_POST['push_orders']) ){
    hit_mena_api();
+}
+
+if (isset($_POST['test_print']) ){
+    print_awb('http://cp-airwaybill.fetchr.us/domestic_mini_tracking_no_c81904e0e7f0df61f45e9d604dbe68eb_1527589277.pdf');
+   // 
 }
 
 }
@@ -189,7 +208,7 @@ function hit_mena_api()
         //$where = array_keys( wc_get_order_statuses() );
     }
     $orders = get_posts( array(
-	          'numberposts'       => -1,
+              'numberposts'       => -1,
             'post_type'   => 'shop_order',
             'post_status' => $where
         )
@@ -224,7 +243,7 @@ function hit_mena_api()
 /* =================================================== Adding Status and Color icon ============================================================= */
 function register_erp_order_status()
 {
-    register_post_status( 		'wc-fetchr-processing', array(
+    register_post_status(       'wc-fetchr-processing', array(
             'label'                     => 'fetchr Processing',
             'public'                    => true,
             'exclude_from_search'       => false,
@@ -233,7 +252,7 @@ function register_erp_order_status()
             'label_count'               => _n_noop( 'fetchr Processing <span class="count">(%s)</span>', 'fetchr Processing <span class="count">(%s)</span>' )
         )
     );
-    register_post_status( 		'wc-ship-with-fetchr', array(
+    register_post_status(       'wc-ship-with-fetchr', array(
             'label'                     => 'Ship With Fetchr',
             'public'                    => true,
             'exclude_from_search'       => false,
@@ -289,22 +308,22 @@ foreach ($products as $product) {
         }
         // str_replace($str_search_for,$str_replace_with, $array)
     $data = array(
-        'username' 		 => get_option('mena_merchant_name'),
-        'password' 		 => get_option('mena_merchant_password'),
-        'method' 		 => 'create_orders',
-        'pickup_location'	 => get_option('mena_pickup_location'),
+        'username'       => get_option('mena_merchant_name'),
+        'password'       => get_option('mena_merchant_password'),
+        'method'         => 'create_orders',
+        'pickup_location'    => get_option('mena_pickup_location'),
         'data' => array(
             array(
-                'order_reference'  	=> 	  "$order_id",
-                'name' 		       		=> 	  str_replace($str_search_for,$str_replace_with, $order_wc->shipping_first_name." ".$order_wc->shipping_last_name),
-                'email' 			      =>    $order_wc->billing_email,
-                'phone_number'	 	  =>    $order_wc->billing_phone,
-                'address' 			    =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_formatted_shipping_address()),
-                'city' 				      =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_city),
-                'payment_type' 	   	=>    $payment_method,
-                'amount' 			      =>    $grand_total,
-                'description'	    	=>	  str_replace($str_search_for,$str_replace_with, $description),
-                'comments'		    	=>	  str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->customer_note),
+                'order_reference'   =>    "$order_id",
+                'name'                  =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_first_name." ".$order_wc->shipping_last_name),
+                'email'                   =>    $order_wc->billing_email,
+                'phone_number'        =>    $order_wc->billing_phone,
+                'address'               =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_formatted_shipping_address()),
+                'city'                    =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_city),
+                'payment_type'      =>    $payment_method,
+                'amount'                  =>    $grand_total,
+                'description'           =>    str_replace($str_search_for,$str_replace_with, $description),
+                'comments'              =>    str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->customer_note),
                 //'item'
             )));
     // echo '<pre>';
@@ -318,11 +337,13 @@ foreach ($products as $product) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
     $results = curl_exec($ch);
+    curl_close($ch);
     print $results;
     $results = json_decode($results);
     if ($results->status == "success")
     {
         // Change Status Here to ERP Processing
+        $order_wc->reduce_order_stock();
         $order_wc->update_status( 'wc-fetchr-processing' );
         // Create A custom field Airway bill number and update it
 
@@ -330,11 +351,97 @@ foreach ($products as $product) {
         if ( ! update_post_meta ($order->ID, 'awb', $results->$order_id ))
         {
             add_post_meta($order->ID, 'awb', $results->$order_id, true );
+
+            //Get PDF and Print it
+            $awb_pdf=get_awb_pdf($results->$order_id);
+            $printed=print_awb($awb_pdf);
+            add_post_meta($order->ID, 'printed', $printed, true ); // under testing
+
+            //Get send Tracking Number by whats app
+            $whatsapp=send_whatsapp_tracking($order_wc,$order);
+            add_post_meta($order->ID, 'whatsapp', $whatsapp, true ); // under testing
+
         }
+
 
     }
 
 }
+    function send_whatsapp_tracking($order_wc,$order){
+        $datalist_wab = array(
+
+            'token' => '6b359ae0c0b1cec41b1c892fbd2f975f5afa812429b0e',
+            'uid' => '201285304127',
+            'to' => ''.$order_wc->billing_phone,
+            'text' => 'اهلا يا '.$order_wc->shipping_first_name.' 
+            لقد تم تأكيد طلبك - لسرعة الشحن يرجي اختيار معاد التوصيل من الرابط التالي '.' https://track.fetchr.us/schedule/?tracking_id='.$results->$order_id.' |-| سيتم تفعيل الرابط حتي تتمكن من اختيار معاد التسليم او تعقب الطلب في خلال 24 ساعة'
+        );
+
+        $url_wab = "https://www.waboxapp.com/api/send/chat";
+        // $data_string = "args=" . json_encode($datalist, JSON_UNESCAPED_UNICODE);
+        $ch_wab = curl_init($url_wab);
+        curl_setopt($ch_wab, CURLOPT_POST, true);
+        curl_setopt($ch_wab, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch_wab, CURLOPT_POSTFIELDS, $datalist_wab);
+        $results_wab = curl_exec($ch_wab);
+        curl_close($ch_wab);
+        return $results_wab;   
+    }
+// 
+    function get_awb_pdf($tracking_no) {
+    // function get_awb_pdf($results,$url) {
+        // $url = $url."client/api/awb";
+        $ch = curl_init('https://business.fetchr.us/api/client/awb');
+        $authorization_token ="5a0308b95bcd81b626fadfbcb7a0dc945e";
+        $data = json_encode(["format" => 'pdf',
+                    "type" => 'mini',
+                    "search_key" => 'tracking_no',
+                    "search_value" => [$tracking_no],
+                    "start_date" => null,
+                    "end_date" => null,
+                ]);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($ch, CURLOPT_HTTPHEADER,
+                        array(
+                            "authorization: $authorization_token",
+                            'Content-Type: application/json',
+                            'Content-Length: ' . strlen($data)
+                        )
+                    );
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS,$data);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+
+        $result_awb = curl_exec($ch);
+        $result_awb = json_decode($result_awb,true);
+        print $result_awb;
+        curl_close($ch);
+        return $result_awb['data']; 
+    }
+
+
+    function print_awb($pdf_url) {
+
+        if (class_exists('GoogleCloudPrintLibrary_GCPL_v2')) {
+
+            // The first parameter to print_document() is the printer ID. Use false to send to the default. You can use the get_printers() method to get a list of those available.
+
+            $gcpl = new GoogleCloudPrintLibrary_GCPL_v2();
+
+            $pdf=array("pdf-file"=>$pdf_url);
+            $printed = $gcpl->print_document(false, substr($pdf_url, -10), $pdf, $prepend = false, $copies = false);
+
+            // Parse the results
+            if (!isset($printed->success)) {
+                trigger_error('Unknown response received from GoogleCloudPrintLibrary_GCPL->print_document()', E_USER_NOTICE);
+            } elseif ($printed->success !== true) {
+                trigger_error('GoogleCloudPrintLibrary_GCPL->print_document(): printing failed: '.$printed->message, E_USER_NOTICE);
+            }
+        }
+        return $printed;
+
+    }
+
 
 function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
 {
@@ -361,19 +468,19 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
         }
         $sku = $product_obj->get_sku();
         $n_product = array (
-            'client_ref'  	 	  => "$order_id",
-            'name' 		 	    	  => str_replace($str_search_for,$str_replace_with, $product["name"]),
-            'sku'		 	       	  => $sku,
-            'quantity' 	 	   	  => $product["qty"],
-            'merchant_details' 	=> array(
-                'mobile' 			  => trim(get_option('mena_merchant_phone_number')),
-                'phone'			  	=> trim(get_option('mena_merchant_phone_number')),
-                'name' 		   		=> get_option('mena_merchant_name'),
-                'address' 			=> ' NO '
+            'client_ref'          => "$order_id",
+            'name'                    => str_replace($str_search_for,$str_replace_with, $product["name"]),
+            'sku'                     => $sku,
+            'quantity'            => $product["qty"],
+            'merchant_details'  => array(
+                'mobile'              => trim(get_option('mena_merchant_phone_number')),
+                'phone'             => trim(get_option('mena_merchant_phone_number')),
+                'name'              => get_option('mena_merchant_name'),
+                'address'           => ' NO '
             ),
-            'COD' 			       	=> $order_wc->get_total_shipping(),// $order_wc->order_shipping
-            'price'		 	       	=> $product_obj->price ,//,$product_obj->get_regular_price()
-            'is_voucher'    		=> 'No'
+            'COD'                   => $order_wc->get_total_shipping(),// $order_wc->order_shipping
+            'price'                 => $product_obj->price ,//,$product_obj->get_regular_price()
+            'is_voucher'            => 'No'
         );
         array_push($item_list,$n_product);
 
@@ -398,16 +505,16 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     $datalist = array(array ('order' => array(
         'items' => $item_list,
         'details' => array(
-            'status' 				      => '',
-            'discount'			 	    => $order_wc->get_total_discount(),
-            'grand_total'	        => $grand_total,
-            'payment_method' 		  => $payment_method,
-            'order_id' 			    	=> $order_id,
-            'customer_firstname' 	=> str_replace($str_search_for,$str_replace_with,$order_wc->shipping_first_name),
-            'customer_lastname' 	=> str_replace($str_search_for,$str_replace_with,$order_wc->shipping_last_name),
-            'customer_mobile'		  => $order_wc->billing_phone,
-            'customer_email' 		  => $order_wc->billing_email,
-            'order_address' 	   	=> str_replace($str_search_for,$str_replace_with,$order_wc->get_formatted_shipping_address())
+            'status'                      => '',
+            'discount'                  => $order_wc->get_total_discount(),
+            'grand_total'           => $grand_total,
+            'payment_method'          => $payment_method,
+            'order_id'                  => $order_id,
+            'customer_firstname'    => str_replace($str_search_for,$str_replace_with,$order_wc->shipping_first_name),
+            'customer_lastname'     => str_replace($str_search_for,$str_replace_with,$order_wc->shipping_last_name),
+            'customer_mobile'         => $order_wc->billing_phone,
+            'customer_email'          => $order_wc->billing_email,
+            'order_address'         => str_replace($str_search_for,$str_replace_with,$order_wc->get_formatted_shipping_address())
         )
     )));
 
@@ -415,12 +522,12 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     // print_r($datalist);
     // exit;
 // var_dump($datalist);exit;
-    $ERPdata 		= "ERPdata=".json_encode($datalist, JSON_UNESCAPED_UNICODE);
-    $erpuser		=  get_option('mena_merchant_name');	// "apifulfilment";
-    $erppassword	=  get_option('mena_merchant_password'); //"apifulfilment";
-    $merchant_name	= "MENA360 API";// get_option('erp_user_name');  //"API Test";//
-    $ch 			= curl_init();
-    $url 			= $url."client/gapicurl/";
+    $ERPdata        = "ERPdata=".json_encode($datalist, JSON_UNESCAPED_UNICODE);
+    $erpuser        =  get_option('mena_merchant_name');    // "apifulfilment";
+    $erppassword    =  get_option('mena_merchant_password'); //"apifulfilment";
+    $merchant_name  = "MENA360 API";// get_option('erp_user_name');  //"API Test";//
+    $ch             = curl_init();
+    $url            = $url."client/gapicurl/";
     curl_setopt($ch, CURLOPT_URL,$url);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $ERPdata."&erpuser=".$erpuser."&erppassword=".$erppassword."&merchant_name=".$merchant_name);
