@@ -184,6 +184,7 @@ if (isset($_POST['test_print']) ){
     function updateOrderStatus(){
      $args = array(
         'status' => 'wc-fetchr-processing',
+        'limit' => -1,
     );
     $orders = wc_get_orders( $args );
     // print_r($orders);
@@ -191,35 +192,71 @@ if (isset($_POST['test_print']) ){
     $tracking_list= array();
     foreach ($orders as $order)
     {
-        $meta_obj=$order->get_meta('awb',false,'view');
-        $meta_data = $meta_obj[1]->get_data();
-         $awb_no=end($meta_data);
+        $meta_array=$order->get_meta('awb',false,'view');
+        if (!empty($meta_array)) {
+         // list is not empty.
+            print("<br><br>------------ meta array <br>");
+            print_r($meta_array);
+            $meta_obj = array_pop(array_reverse($meta_array));
+            print("<br><br>------------ OBJ <br>");
+            print_r($meta_obj);
+            try {$meta_data = $meta_obj->get_data();
+                } catch (Exception $e) {
+                    echo 'Caught exception: ',  $e->getMessage(), "\n";
+                }
+            $awb_no=end($meta_data);
+            print("<br><br>------------ Data <br>");
+            print_r($meta_data);
+            print("<br><br>------------ AWB <br>");
+            print_r($awb_no);
 
-        // print_r($meta_data);
-        $tracking_orders[$order->ID]=$awb_no;
-        array_push($tracking_list, $awb_no );
+            $tracking_orders[$order->get_id()]=$awb_no;
+            array_push($tracking_list, $awb_no );
 
-        // print("------------".$meta->get_data());
-        // print_r($tracking_orders);
-        // print_r($tracking_list);
+            // print("------------".$meta->get_data());
+            // print_r($tracking_orders);
+            // print_r($tracking_list);
+        }
     }
      $BulkStatus=getBulkStatus($tracking_list);
-     // print_r($BulkStatus);
+    print("<br><br>------------ Bulk Status <br>");
+     print_r($BulkStatus);
 
      foreach ($orders as $order)
      {
-        $meta_obj=$order->get_meta('awb',false,'view');
-        $meta_data = $meta_obj[1]->get_data();
-         $awb_no=end($meta_data);
-        print '<br> '.$order->ID.' : Order Status'.$BulkStatus[$awb_no];
-        if ( ! update_post_meta ($order->ID, 'order status',$BulkStatus[$awb_no]))
-        {
-            add_post_meta($order->ID, 'order status',$BulkStatus[$awb_no], true );
+        $meta_array=$order->get_meta('awb',false,'view');
+        if (!empty($meta_array)) {
+            print("<br><br>------------ meta array <br>");
+            print_r($meta_array);
+            $meta_obj = array_pop(array_reverse($meta_array));
+            print("<br><br>------------ OBJ <br>");
+            print_r($meta_obj);
+            try {$meta_data = $meta_obj->get_data();
+                } catch (Exception $e) {
+                    echo 'Caught exception: ',  $e->getMessage(), "\n";
+                }
+            $awb_no=end($meta_data);
+            print("<br><br>------------ Data <br>");
+            print_r($meta_data);
+            print("<br><br>------------ AWB <br>");
+            print_r($awb_no);
+
+            // $meta_data = array_pop(array_reverse($meta_obj));
+             
+             $awb_no=end($meta_data);
+            print '<br> '.$order->get_id().' : Order Status'.$BulkStatus[$awb_no];
+            if ( ! update_post_meta ($order->get_id(), 'order status',$BulkStatus[$awb_no]))
+            {
+                add_post_meta($order->get_id(), 'order status',$BulkStatus[$awb_no], true );
+            }
+
+            if(strpos($BulkStatus, 'Delivered on') !== false){
+                $order->update_status( 'completed' );
+            }elseif (strpos($BulkStatus, 'Cancelled on') !== false ) {
+                # code...
+                $order->update_status( 'cancelled' );
+            }
         }
-        if($BulkStatus[$awb_no]='Delivered'){
-            $order->update_status( 'completed' );
-        }
-        
      }
     }
 
@@ -241,15 +278,17 @@ if (isset($_POST['test_print']) ){
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
         $jsonResponse = curl_exec($ch);
         curl_close($ch);
-
+        // print("<br><br>------------ Json Response <br>");
+        // print_r($jsonResponse);
         // print $jsonResponse;
         $arrayResponse  = json_decode($jsonResponse,true);
         $arrayResponse = $arrayResponse['response'];
-        // print_r($arrayResponse);
+        print_r($arrayResponse);
 
-
-        foreach($arrayResponse as $ark => $arv) {
-            $ordersStatus[$arv['tracking_no']] = $arv['package_state']; 
+        if (!empty($arrayResponse)) {
+            foreach($arrayResponse as $ark => $arv) {
+                $ordersStatus[$arv['tracking_no']] = $arv['package_state']; 
+            }
         }
 
         return $ordersStatus;
@@ -280,6 +319,7 @@ if (isset($_POST['test_print']) ){
 
 // setting a  cron to run hourly
 add_action( 'wp', 'setup_schedule_event' );
+
 function setup_schedule_event()
 {
     if ( ! wp_next_scheduled( 'prefix_hourly_event' ) )
@@ -344,8 +384,9 @@ function hit_mena_api()
         }
         else
         {
+            $gcpl = new GoogleCloudPrintLibrary_GCPL_v2();
             // delivery only
-            menavip_delivery_only ($order,$order_wc,$products,$server_url);
+            menavip_delivery_only ($order,$order_wc,$products,$server_url,$gcpl);
         }
 
     }
@@ -398,9 +439,10 @@ add_filter( 'wc_order_statuses', 'add_fetchr_processing_to_order_statuses' );
 // setting a wp test cron to run hourly
 // Colors for icons
 
-function menavip_delivery_only ($order,$order_wc,$products,$url)
+function menavip_delivery_only ($order,$order_wc,$products,$url,$gcpl)
 {
 $description = '';
+
 foreach ($products as $product) {
   $description = $description . $product['name'].' - Qty: '.$product['qty'].', ';
 }
@@ -449,33 +491,56 @@ foreach ($products as $product) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
     $results = curl_exec($ch);
-    print $results;
+    // print $results;
     $results = json_decode($results);
     curl_close($ch);
     if ($results->status == "success")
     {
         // Change Status Here to ERP Processing
+        // to-do : add checkups to check if meta exists then ignore
         $order_wc->update_status( 'wc-fetchr-processing' );
-
-        print('again clikate tany marra wazzaaaaaap');
-        $results_wab=send_whatsapp_tracking($order_wc,$order);
-        print($results_wab);
-        add_post_meta($order->ID, 'wab_uid', $results_wab, true ); // under testing ________________________________ whats app test end
-
-
         if ( ! update_post_meta ($order->ID, 'awb', $results->$order_id ))
         {
             add_post_meta($order->ID, 'awb', $results->$order_id, true );
         }
+        if ( ! update_post_meta ($order->ID, 'ywot_tracking_code', $results->$order_id ))
+        {
+            add_post_meta($order->ID, 'ywot_tracking_code', $results->$order_id, true );
+        }
+        if ( ! update_post_meta ($order->ID, 'ywot_carrier_name', 'Fetchr' ))
+        {
+            add_post_meta($order->ID, 'ywot_carrier_name', 'Fetchr', true );
+        }
+        
+        
+        print('<br>Awb:'.$results->$order_id);
+        
+        $results_wab=send_whatsapp_tracking($order_wc,$order,$results->$order_id);
+        if ( ! update_post_meta ($order->ID, 'wab_uid', $results_wab ))
+        {
+            add_post_meta($order->ID, 'wab_uid', $results_wab, true ); 
+        }
+        print(' | Whats App:'.$results_wab);
+        
 
-        // ________________________________ print app test 
-        print('3awez kam nos5a ya ebny');
-        $file_url=get_awb_pdf($results->$order_id);
-        print $file_url;
-        $printed_awb=print_awb($file_url);
-        print $printed_awb;
-        add_post_meta($order->ID, 'printed_awb', $printed_awb, true );
+        try {
+            $file_url=get_awb_pdf($results->$order_id);
+            print(' | pdf:'.$file_url);
+            $printed_awb=print_awb($file_url,$order_wc->get_id(),$gcpl); 
+        } catch (Exception $e) {
+            $file_url=$e->getMessage();
+            $printed_awb=$e->getMessage();
+        }
+        if ( ! update_post_meta ($order->ID, 'wab_uid', $results_wab ))
+        {
+            add_post_meta($order->ID, 'printed_awb', $printed_awb, true ); 
+        }
+        print(' | pdf:'.$file_url);
+        print(' | Printed:'.$printed_awb);
+        
 
+        $order_id = $order_wc->get_id();
+        wc_reduce_stock_levels( $order_id );
 
 
     }
@@ -483,14 +548,14 @@ foreach ($products as $product) {
 }
 
 
-    function send_whatsapp_tracking($order_wc,$order){
+    function send_whatsapp_tracking($order_wc,$order,$tracking_no){
         $datalist_wab = array(
 
             'token' => '6b359ae0c0b1cec41b1c892fbd2f975f5afa812429b0e',
             'uid' => '201285304127',
             'to' => ''.$order_wc->billing_phone,
             'text' => 'اهلا يا '.$order_wc->shipping_first_name.' 
-            لقد تم تأكيد طلبك - لسرعة الشحن يرجي اختيار معاد التوصيل من الرابط التالي '.' https://track.fetchr.us/schedule/?tracking_id='.$results->$order_id.' |-| سيتم تفعيل الرابط حتي تتمكن من اختيار معاد التسليم او تعقب الطلب في خلال 24 ساعة'
+            لقد تم تأكيد طلبك - لسرعة الشحن يرجي اختيار معاد التوصيل من الرابط التالي '.' https://track.fetchr.us/schedule/?tracking_id='.$tracking_no.' |-| سيتم تفعيل الرابط حتي تتمكن من اختيار معاد التسليم او تعقب الطلب في خلال 24 ساعة'
         );
 
         $url_wab = "https://www.waboxapp.com/api/send/chat";
@@ -500,12 +565,11 @@ foreach ($products as $product) {
         curl_setopt($ch_wab, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch_wab, CURLOPT_POSTFIELDS, $datalist_wab);
         $results_wab = curl_exec($ch_wab);
-        print $results_wab;
-        print $results->$order_id; // under testing
+        // print $results_wab;
+        // print $results->$order_id; // under testing
         // $results_wab = json_decode($results_wab);
         curl_close($ch_wab);
-            
-        add_post_meta($order->ID, 'wab_uid', $results_wab, true ); // under testing
+
         return $results_wab;   
     }
 // 
@@ -535,29 +599,29 @@ foreach ($products as $product) {
 
         $result_awb = curl_exec($ch);
         $result_awb = json_decode($result_awb,true);
-        print $result_awb;
+        // print $result_awb;
         curl_close($ch);
         return $result_awb['data']; 
     }
 
 
-    function print_awb($pdf_url) {
+    function print_awb($pdf_url,$order_id,$gcpl) {
 
         if (class_exists('GoogleCloudPrintLibrary_GCPL_v2')) {
 
             // The first parameter to print_document() is the printer ID. Use false to send to the default. You can use the get_printers() method to get a list of those available.
 
-            $gcpl = new GoogleCloudPrintLibrary_GCPL_v2();
 
             $pdf=array("pdf-file"=>$pdf_url);
-            print_r($pdf);
-            $printed = $gcpl->print_document(false, substr($pdf_url, -10), $pdf, $prepend = false, $copies = false);
+            // print_r($pdf);
+
+            $printed = $gcpl->print_document(false, ''.$order_id, $pdf, $prepend = false, $copies = false);
 
             // Parse the results
             if (!isset($printed->success)) {
                 trigger_error('Unknown response received from GoogleCloudPrintLibrary_GCPL->print_document()', E_USER_NOTICE);
             } elseif ($printed->success !== true) {
-                // trigger_error('GoogleCloudPrintLibrary_GCPL->print_document(): printing failed: '.$printed->message, E_USER_NOTICE);
+                trigger_error('GoogleCloudPrintLibrary_GCPL->print_document(): printing failed: '.$printed->message, E_USER_NOTICE);
             }
         }
         return $printed->success;
@@ -664,7 +728,10 @@ function menavip_fulfil_delivery ($order,$order_wc,$products,$url)
     {
         // Change Status Here to ERP Processing
         $order_wc->update_status( 'wc-fetchr-processing' );
-        // $order_wc->reduce_order_stock();
+
+        $order_id = $order_wc->get_id();
+        wc_reduce_stock_levels( $order_id );
+
         // Create A custom field Airway bill number and update it
 
         if ( ! update_post_meta ($order_id, 'awb', $results['response']['tracking_no'] ))
