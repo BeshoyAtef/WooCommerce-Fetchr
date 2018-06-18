@@ -239,72 +239,38 @@ if (isset($_POST['Test_send']) ){
 }
 
 
-if (isset($_POST['test_print']) ){
+if (isset($_POST['test_print']) )
+{
 
-     $args = array(
-        'status' => 'wc-fetchr-processing',
-        
-        'limit' => 1,
-    );
-    $orders = wc_get_orders( $args );
-   
-    foreach ($orders as $order_wc)
-    {
-            $description = '';
-            $products = $order_wc->get_items();
-           foreach ($products as $product) {
-             $description = $description . $product['name'].' - Qty: '.$product['qty'].', ';
-           }
+        $ch = curl_init('https://business.fetchr.us/api/client/awb');
+        $authorization_token ="5a0308b95bcd81b626fadfbcb7a0dc945e";
+        $data = json_encode(["format" => 'pdf',
+                    "type" => 'mini',
+                    "search_key" => 'tracking_no',
+                    "search_value" => ['34174489453174'],
+                    "start_date" => null,
+                    "end_date" => null,
+                ]);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($ch, CURLOPT_HTTPHEADER,
+                        array(
+                            "authorization: $authorization_token",
+                            'Content-Type: application/json',
+                            'Content-Length: ' . strlen($data)
+                        )
+                    );
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS,$data);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
 
-             $str_search_for = array('"','&');
-             $str_replace_with = array('\'\'', 'and');
-        
-        
-
-             $order_id = (string)$order_wc->get_order_number();
-        $grand_total=0;
-        
-            $data = array(
-        'username'       => get_option('mena_merchant_name'),
-        'password'       => get_option('mena_merchant_password'),
-        'method'         => 'pickup_orders',
-//         'pickup_location'=> get_option('mena_pickup_location'),
-        'data' => array(
-            array(
-                'order_reference'   =>    "$order_id",
-                'name'                  =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_first_name." ".$order_wc->shipping_last_name),
-                'email'                   =>    $order_wc->billing_email,
-                'phone_number'        =>    $order_wc->billing_phone,
-                'address'               =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_formatted_shipping_address()),
-                'city'                    =>    str_replace($str_search_for,$str_replace_with, $order_wc->shipping_city),
-                'payment_type'      =>    'CD',
-                'amount'                  =>   $grand_total ,
-                'description'           =>    str_replace($str_search_for,$str_replace_with, $description),
-                'comments'              =>    str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->customer_note),
-                //'item'
-            )));
+        $result_awb = curl_exec($ch);
+        $result_awb = json_decode($result_awb,true);
+        print_r($result_awb);
+        curl_close($ch);
+        return $result_awb['data']; 
 
 
-
-   
-
-
-               $url = "http://menavip.com/client/api/";
-                $data_string = "args=" . json_encode($data, JSON_UNESCAPED_UNICODE);
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
-                $results = curl_exec($ch);
-                // print $results;
-                $results = json_decode($results);
-                curl_close($ch);
-
-               print_r($results);
-
-        }
-
-    }
+}
 
 }
 
@@ -614,7 +580,7 @@ function hit_mena_api()
         //$where = array_keys( wc_get_order_statuses() );
     }
     $orders = get_posts( array(
-              'numberposts'       => 1,
+              'numberposts'       => -1,
             'post_type'   => 'shop_order',
             'post_status' => $where
         )
@@ -699,12 +665,12 @@ $description = '';
 
 foreach ($products as $product) {
   $description = $description . $product['name'].' - Qty: '.$product['qty'].', ';
+
 }
 
   $str_search_for = array('"','&','<br>');
   $str_replace_with = array('\'\'', 'and','-');
 
-  $order_id = (string)$order_wc->get_order_number();
 
 
         if($order_wc->payment_method == "cod"){
@@ -739,36 +705,36 @@ foreach ($products as $product) {
     // );
 
     $order_data = $order_wc->get_data(); // The Order data
+    $order_id = $order_data['id'];
+    $order_payment_method = $order_data['payment_method'];
+    $order_shipping_company = $order_data['shipping']['company'];
+    $order_shipping_address_1 = $order_data['shipping']['address_1'];
+    $order_shipping_address_2 = $order_data['shipping']['address_2'];
+    $order_shipping_city = $order_data['shipping']['city'];
+    $order_shipping_state = $order_data['shipping']['state'];
+    $order_shipping_postcode = $order_data['shipping']['postcode'];
+    $order_shipping_country = $order_data['shipping']['country'];
+
+    $adrress=$order_shipping_company.' - '.$order_shipping_address_1.' - '.$order_shipping_address_2.' - '.$order_shipping_city.' - '.$order_shipping_state.' - '.$order_shipping_postcode.' - '.$order_shipping_country;
 
     $data = array(
-        'method'         => 'create_orders',
+        'client_address_id'=> get_option('mena_pickup_location') ,
+        'data' => array(array(
         'order_reference'   =>    $order_id,
-        'username'       => get_option('mena_merchant_name'),
-        'password'       => get_option('mena_merchant_password'),
         'payment_type'      =>    $payment_method,
-        'data' => array(
-        'receiver_data' => array(
-                'name'              =>    str_replace($str_search_for,$str_replace_with, $order_data['billing']['first_name']." ".$order_data['billing']['last_name']),
-                'email'             =>    $order_data['billing']['email'],
-                'phone_number'      =>    $order_data['billing']['phone'],
-                'street_one'           =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_formatted_shipping_address()),
-                'receiver_city'     =>    str_replace($str_search_for,$str_replace_with, $order_data['shipping']['city']),
-                'receiver_country'  =>    str_replace($str_search_for,$str_replace_with, $order_data['shipping']['country']),
-                'bag_count' => 1,
-                'total_amount'      =>    $grand_total,
-                'instructions'          =>    str_replace($str_search_for,$str_replace_with, $order_wc->customer_message."   ".$order_wc->get_customer_note())
-                //'item'
-        ),
-        'package_data' => array(
-                'pickup_address_id' => get_option('mena_pickup_location'),
-                'package_reference' => $order_id,
-                'type' => 'nondocument',
-                'price' => $grand_total ,
-                'description'       =>    str_replace($str_search_for,$str_replace_with, $description),
-                'bag_count' => 1,
-                'weight' => 0.5
-        )
-    )
+        'name'              =>    str_replace($str_search_for,$str_replace_with, $order_data['billing']['first_name']." ".$order_data['billing']['last_name']),
+        'email'             =>    $order_data['billing']['email'],
+        'phone_number'      =>    $order_data['billing']['phone'],
+        'address'        =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_formatted_shipping_address()),
+        'receiver_city'     =>    str_replace($str_search_for,$str_replace_with, $order_data['shipping']['city']),
+        'receiver_country'  =>    'Egypt',
+        'description'      =>    str_replace($str_search_for,$str_replace_with, $description),
+        'bag_count' => 1,
+        'weight' => 0.5,
+        'total_amount'      =>    $grand_total,
+        'comments'          =>    str_replace($str_search_for,$str_replace_with, $order_wc->customer_message.'   '.$order_wc->get_customer_note())
+
+    ))
     );
 
     echo '<pre>';
@@ -780,7 +746,8 @@ foreach ($products as $product) {
 
     $url = "https://api.order.fetchr.us/order";
     $data_string =   json_encode($data, JSON_UNESCAPED_UNICODE);
-    // print_r($data_string);
+
+    print_r($data_string);
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_HTTPHEADER,$headr);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -789,21 +756,21 @@ foreach ($products as $product) {
     // print_r($ch);
     $results = curl_exec($ch);
     print $results;
-    $results = json_decode($results);
-
     curl_close($ch);
+    $results = json_decode($results);
+    $tracking_no=$results->data[0]->tracking_no;
     if ($results->status == "success")
     {
         // Change Status Here to ERP Processing
         // to-do : add checkups to check if meta exists then ignore
         $order_wc->update_status( 'wc-fetchr-processing' );
-        if ( ! update_post_meta ($order->ID, 'awb', $results->$order_id ))
+        if ( ! update_post_meta ($order->ID, 'awb', $tracking_no ))
         {
-            add_post_meta($order->ID, 'awb', $results->$order_id, true );
+            add_post_meta($order->ID, 'awb', $tracking_no, true );
         }
-        if ( ! update_post_meta ($order->ID, 'ywot_tracking_code', $results->$order_id ))
+        if ( ! update_post_meta ($order->ID, 'ywot_tracking_code', $tracking_no))
         {
-            add_post_meta($order->ID, 'ywot_tracking_code', $results->$order_id, true );
+            add_post_meta($order->ID, 'ywot_tracking_code', $tracking_no, true );
         }
         if ( ! update_post_meta ($order->ID, 'ywot_carrier_name', 'Fetchr' ))
         {
@@ -811,9 +778,9 @@ foreach ($products as $product) {
         }
         
         
-        print('<br>Awb:'.$results->$order_id);
+        print('<br>Awb:'.$tracking_no);
         
-        $results_wab=send_whatsapp_tracking($order_wc,$order,$results->$order_id);
+        $results_wab=send_whatsapp_tracking($order_wc,$order,$tracking_no,$description);
         if ( ! update_post_meta ($order->ID, 'wab_uid', $results_wab ))
         {
             add_post_meta($order->ID, 'wab_uid', $results_wab, true ); 
@@ -822,7 +789,7 @@ foreach ($products as $product) {
         
 
         try {
-            $file_url=get_awb_pdf($results->$order_id);
+            $file_url=get_awb_pdf($tracking_no);
             print(' | pdf:'.$file_url);
             $printed_awb=print_awb($file_url,$order_wc->get_id(),$gcpl); 
         } catch (Exception $e) {
@@ -853,7 +820,7 @@ foreach ($products as $product) {
 }
 
 
-    function send_whatsapp_tracking($order_wc,$order,$tracking_no){
+    function send_whatsapp_tracking($order_wc,$order,$tracking_no,$description){
         $text='عزيزي '.$order_wc->shipping_first_name.' لقد تم تأكيد طلبك بنجاح -
             : المتجات :'.$description.' 
             : علي العنوان '.$order_wc->get_formatted_shipping_address().'
@@ -883,14 +850,13 @@ foreach ($products as $product) {
     }
 // 
     function get_awb_pdf($tracking_no) {
-    // function get_awb_pdf($results,$url) {
-        // $url = $url."client/api/awb";
+
         $ch = curl_init('https://business.fetchr.us/api/client/awb');
         $authorization_token ="5a0308b95bcd81b626fadfbcb7a0dc945e";
         $data = json_encode(["format" => 'pdf',
                     "type" => 'mini',
                     "search_key" => 'tracking_no',
-                    "search_value" => [$tracking_no],
+                    "search_value" => [''.$tracking_no],
                     "start_date" => null,
                     "end_date" => null,
                 ]);
@@ -908,7 +874,7 @@ foreach ($products as $product) {
 
         $result_awb = curl_exec($ch);
         $result_awb = json_decode($result_awb,true);
-        // print $result_awb;
+        print_r($result_awb);
         curl_close($ch);
         return $result_awb['data']; 
     }
