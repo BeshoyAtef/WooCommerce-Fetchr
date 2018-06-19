@@ -375,10 +375,10 @@ if (isset($_POST['test_print']) )
                 $order->update_status( 'cancelled' );
             }elseif (strpos($BulkStatus[$awb_no], 'Returned') !== false ) {
                 # code...
-                $order->update_status( 'wc-customer-cancel' );
+                $order->update_status( 'cancelled' );
             }elseif (strpos($BulkStatus[$awb_no], 'Cancelled') !== false ) {
                 # code...
-                $order->update_status( 'wc-customer-cancel' );
+                $order->update_status( 'cancelled' );
             }elseif (strpos($BulkStatus[$awb_no], 'Attempted delivery') !== false ) {
                 # code...
                 if ($order->get_meta('whatsapp_followup',false,'view')){
@@ -580,7 +580,7 @@ function hit_mena_api()
         //$where = array_keys( wc_get_order_statuses() );
     }
     $orders = get_posts( array(
-              'numberposts'       => -1,
+              'numberposts'       => 3,
             'post_type'   => 'shop_order',
             'post_status' => $where
         )
@@ -634,6 +634,15 @@ function register_erp_order_status()
             'label_count'               => _n_noop( 'Ship With Fetchr <span class="count">(%s)</span>', 'Ship With Fetchr <span class="count">(%s)</span>' )
         )
     );
+        register_post_status(       'wc-returned', array(
+            'label'                     => 'Returned Fetchr [RTO]',
+            'public'                    => true,
+            'exclude_from_search'       => false,
+            'show_in_admin_all_list'    => true,
+            'show_in_admin_status_list' => true,
+            'label_count'               => _n_noop( 'Returned Fetchr [RTO] <span class="count">(%s)</span>', 'Returned Fetchr [RTO] <span class="count">(%s)</span>' )
+        )
+    );
 }
 add_action( 'init', 'register_erp_order_status' );
 // Add to list of WC Order statuses
@@ -648,6 +657,8 @@ function add_fetchr_processing_to_order_statuses( $order_statuses ) {
         {
             $new_order_statuses['wc-fetchr-processing'] = 'Fetchr Processing';
             $new_order_statuses['wc-ship-with-fetchr'] = 'Ship With Fetchr';
+            $new_order_statuses['wc-returned'] = 'Returned Fetchr [RTO]';
+
         }
 
     }
@@ -715,7 +726,7 @@ foreach ($products as $product) {
     $order_shipping_postcode = $order_data['shipping']['postcode'];
     $order_shipping_country = $order_data['shipping']['country'];
 
-    $adrress=$order_shipping_company.' - '.$order_shipping_address_1.' - '.$order_shipping_address_2.' - '.$order_shipping_city.' - '.$order_shipping_state.' - '.$order_shipping_postcode.' - '.$order_shipping_country;
+    $adrress=$order_shipping_company.' - '.$order_shipping_address_1.' - '.$order_shipping_address_2.' - '.$order_shipping_state.' - '.$order_shipping_postcode;
 
     $data = array(
         'client_address_id'=> get_option('mena_pickup_location') ,
@@ -725,7 +736,7 @@ foreach ($products as $product) {
         'name'              =>    str_replace($str_search_for,$str_replace_with, $order_data['billing']['first_name']." ".$order_data['billing']['last_name']),
         'email'             =>    $order_data['billing']['email'],
         'phone_number'      =>    $order_data['billing']['phone'],
-        'address'        =>    str_replace($str_search_for,$str_replace_with, $order_wc->get_formatted_shipping_address()),
+        'address'        =>    str_replace($str_search_for,$str_replace_with, $adrress),
         'receiver_city'     =>    str_replace($str_search_for,$str_replace_with, $order_data['shipping']['city']),
         'receiver_country'  =>    'Egypt',
         'description'      =>    str_replace($str_search_for,$str_replace_with, $description),
@@ -756,7 +767,7 @@ foreach ($products as $product) {
     // print_r($ch);
     $results = curl_exec($ch);
     print $results;
-    curl_close($ch);
+    // curl_close($ch);
     $results = json_decode($results);
     $tracking_no=$results->data[0]->tracking_no;
     if ($results->status == "success")
@@ -824,7 +835,8 @@ foreach ($products as $product) {
         $text='عزيزي '.$order_wc->shipping_first_name.' لقد تم تأكيد طلبك بنجاح -
             : المتجات :'.$description.' 
             : علي العنوان '.$order_wc->get_formatted_shipping_address().'
-            : مجموع الطلب بالشحن'.$order_wc->get_total().'';
+            : مجموع الطلب بالشحن'.$order_wc->get_total().'
+            : رقم الطلب'.$order_wc->get_id().'';
 
         $datalist_wab = array(
 
@@ -844,14 +856,13 @@ foreach ($products as $product) {
         // print $results_wab;
         // print $results->$order_id; // under testing
         // $results_wab = json_decode($results_wab);
-        curl_close($ch_wab);
 
         return $results_wab;   
     }
 // 
     function get_awb_pdf($tracking_no) {
 
-        $ch = curl_init('https://business.fetchr.us/api/client/awb');
+        $ch_pdf = curl_init('https://business.fetchr.us/api/client/awb');
         $authorization_token ="5a0308b95bcd81b626fadfbcb7a0dc945e";
         $data = json_encode(["format" => 'pdf',
                     "type" => 'mini',
@@ -860,22 +871,21 @@ foreach ($products as $product) {
                     "start_date" => null,
                     "end_date" => null,
                 ]);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-        curl_setopt($ch, CURLOPT_HTTPHEADER,
+        curl_setopt($ch_pdf, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($ch_pdf, CURLOPT_HTTPHEADER,
                         array(
                             "authorization: $authorization_token",
                             'Content-Type: application/json',
                             'Content-Length: ' . strlen($data)
                         )
                     );
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS,$data);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($ch_pdf, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch_pdf, CURLOPT_POSTFIELDS,$data);
+        curl_setopt($ch_pdf, CURLOPT_FOLLOWLOCATION, 1);
 
-        $result_awb = curl_exec($ch);
+        $result_awb = curl_exec($ch_pdf);
         $result_awb = json_decode($result_awb,true);
         print_r($result_awb);
-        curl_close($ch);
         return $result_awb['data']; 
     }
 
