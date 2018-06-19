@@ -715,7 +715,7 @@ foreach ($products as $product) {
         'username'       => get_option('mena_merchant_name'),
         'password'       => get_option('mena_merchant_password'),
         'method'         => 'create_orders',
-        'pickup_location'=> get_option('mena_pickup_location'),
+        'pickup_location'=> 'Villa 186, Banafseg 10 , Tagamo3 1 , New Cairo , Cairo, Egypt',
         'data' => array(
             array(
                 'order_reference'   =>    "$order_id",
@@ -765,7 +765,7 @@ foreach ($products as $product) {
         
         print('<br>Awb:'.$results->$order_id);
         
-        $results_wab=send_whatsapp_tracking($order_wc,$order,$results->$order_id);
+        $results_wab=send_whatsapp_tracking($order_wc,$order,$results->$order_id,$description);
         if ( ! update_post_meta ($order->ID, 'wab_uid', $results_wab ))
         {
             add_post_meta($order->ID, 'wab_uid', $results_wab, true ); 
@@ -805,7 +805,7 @@ foreach ($products as $product) {
 }
 
 
-    function send_whatsapp_tracking($order_wc,$order,$tracking_no){
+    function send_whatsapp_tracking($order_wc,$order,$tracking_no,$description){
         $text='عزيزي '.$order_wc->shipping_first_name.' لقد تم تأكيد طلبك بنجاح -
             : المتجات :'.$description.' 
             : علي العنوان '.$order_wc->get_formatted_shipping_address().'
