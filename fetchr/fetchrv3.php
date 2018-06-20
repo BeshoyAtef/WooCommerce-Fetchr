@@ -580,7 +580,7 @@ function hit_mena_api()
         //$where = array_keys( wc_get_order_statuses() );
     }
     $orders = get_posts( array(
-              'numberposts'       => 3,
+              'numberposts'       => 15,
             'post_type'   => 'shop_order',
             'post_status' => $where
         )
@@ -791,7 +791,7 @@ foreach ($products as $product) {
         
         print('<br>Awb:'.$tracking_no);
         
-        $results_wab=send_whatsapp_tracking($order_wc,$order,$tracking_no,$description);
+        $results_wab=send_whatsapp_tracking($order_wc,$order,$tracking_no,$description,$adrress);
         if ( ! update_post_meta ($order->ID, 'wab_uid', $results_wab ))
         {
             add_post_meta($order->ID, 'wab_uid', $results_wab, true ); 
@@ -800,19 +800,19 @@ foreach ($products as $product) {
         
 
         try {
-            $file_url=get_awb_pdf($tracking_no);
-            print(' | pdf:'.$file_url);
-            $printed_awb=print_awb($file_url,$order_wc->get_id(),$gcpl); 
+            // $file_url=get_awb_pdf($tracking_no);
+            // print(' | pdf:'.$file_url);
+            // $printed_awb=print_awb($file_url,$order_wc->get_id(),$gcpl); 
         } catch (Exception $e) {
             $file_url=$e->getMessage();
             $printed_awb=$e->getMessage();
         }
         if ( ! update_post_meta ($order->ID, 'wab_uid', $results_wab ))
         {
-            add_post_meta($order->ID, 'printed_awb', $printed_awb, true ); 
+            // add_post_meta($order->ID, 'printed_awb', $printed_awb, true ); 
         }
-        print(' | pdf:'.$file_url);
-        print(' | Printed:'.$printed_awb);
+        // print(' | pdf:'.$file_url);
+        // print(' | Printed:'.$printed_awb);
         
         try {
             WC()->mailer()->get_emails()['WC_Email_New_Order']->trigger( $order_id );
@@ -831,12 +831,12 @@ foreach ($products as $product) {
 }
 
 
-    function send_whatsapp_tracking($order_wc,$order,$tracking_no,$description){
+    function send_whatsapp_tracking($order_wc,$order,$tracking_no,$description,$adrress){
         $text='عزيزي '.$order_wc->shipping_first_name.' لقد تم تأكيد طلبك بنجاح -
-            : المتجات :'.$description.' 
-            : علي العنوان '.$order_wc->get_formatted_shipping_address().'
-            : مجموع الطلب بالشحن'.$order_wc->get_total().'
-            : رقم الطلب'.$order_wc->get_id().'';
+             المتجات :'.$description.' 
+             علي العنوان : '.$adrress.'
+             مجموع الطلب بالشحن :'.$order_wc->get_total().'
+             رقم الطلب : *'.$order_wc->get_id().'*';
 
         $datalist_wab = array(
 
